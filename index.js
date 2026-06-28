@@ -19,10 +19,12 @@ const PORT = process.env.PORT || 3000;
 // ── SUPABASE HELPERS ──
 async function dbGet(table, filters = {}) {
   let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-  Object.entries(filters).forEach(([k, v]) => url += `${k}=eq.${encodeURIComponent(v)}&`);
+  Object.entries(filters).forEach(([k, v]) => url += `${k}=eq.${v}&`);
   url += 'limit=1';
+  console.log('dbGet URL:', url);
   const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
   const data = await r.json();
+  console.log('dbGet result:', JSON.stringify(data));
   return data[0] || null;
 }
 
