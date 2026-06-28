@@ -1,5 +1,8 @@
+export const config = {
+  runtime: 'nodejs'
+};
+
 export default async function handler(req, res) {
-  // Responder a MP inmediatamente para evitar timeout
   res.status(200).json({ ok: true });
 
   if (req.method !== 'POST') return;
@@ -11,8 +14,10 @@ export default async function handler(req, res) {
   const scriptUrl = 'https://script.google.com/macros/s/AKfycbwZywLf4Qvz_BCLQv2nwZ2Gt4QeI0VNGH2C681ZWGuc39r6dV-5plinIgnFMLXjqDdF/exec';
 
   try {
-    await fetch(`${scriptUrl}?type=payment&data.id=${paymentId}`);
+    const https = await import('https');
+    const url = new URL(`${scriptUrl}?type=payment&data.id=${paymentId}`);
+    https.get(url.toString());
   } catch (e) {
-    console.error('Error llamando al script:', e);
+    console.error(e);
   }
 }
