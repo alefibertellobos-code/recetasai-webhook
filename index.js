@@ -312,6 +312,7 @@ Respondé ÚNICAMENTE con JSON válido:
 
   // Registrar generación
   await dbInsert('generaciones', { id: generateId(), codigo_usuario: session.codigo, fecha: hoy });
+  console.log('Generación registrada:', JSON.stringify(genInsert));
 
   return { ok: true, receta: JSON.parse(jsonMatch[0]), generaciones_hoy: generacionesHoy.length + 1, limite };
 }
