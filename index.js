@@ -1,6 +1,5 @@
 const express = require('express');
 const fetch = require('node-fetch');
-const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(express.json());
@@ -91,7 +90,7 @@ function addMonths(months) {
   return d.toISOString();
 }
 
-// ── EMAIL CON BREVO SMTP ──
+// ── EMAIL CON BREVO API ──
 async function sendAccessEmail(email, codigo, plan, vencimiento) {
   const frontendUrl = await getConfig('FRONTEND_URL') || 'https://recetasai.netlify.app';
   const vencLabel = vencimiento === 'vitalicio' ? 'Vitalicio ♾️' : `Hasta el ${new Date(vencimiento).toLocaleDateString('es-AR')}`;
@@ -124,24 +123,21 @@ async function sendAccessEmail(email, codigo, plan, vencimiento) {
 </html>`;
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
+    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': process.env.BREVO_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { name: 'RecetasIA', email: 'noreply@recetasai.netlify.app' },
+        to: [{ email }],
+        subject: '🥗 Tu código de acceso — RecetasIA',
+        htmlContent: html
+      })
     });
-
-    const info = await transporter.sendMail({
-      from: `RecetasIA <${process.env.FROM_EMAIL}>`,
-      to: email,
-      subject: '🥗 Tu código de acceso — RecetasIA',
-      html
-    });
-
-    console.log('Email enviado:', info.messageId);
+    const data = await r.json();
+    console.log('Email enviado:', JSON.stringify(data));
   } catch (err) {
     console.error('Error enviando email:', err);
   }
