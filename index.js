@@ -1,16 +1,9 @@
 const express = require('express');
 const fetch = require('node-fetch');
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(express.json());
-
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  next();
-});
 
 const SUPABASE_URL = 'https://rgmbmoasuqdiwavcaskl.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -19,12 +12,10 @@ const PORT = process.env.PORT || 3000;
 // ── SUPABASE HELPERS ──
 async function dbGet(table, filters = {}) {
   let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-  Object.entries(filters).forEach(([k, v]) => url += `${k}=eq.${v}&`);
+  Object.entries(filters).forEach(([k, v]) => url += `${k}=eq.${encodeURIComponent(v)}&`);
   url += 'limit=1';
-  console.log('dbGet URL:', url);
   const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
   const data = await r.json();
-  console.log('dbGet result:', JSON.stringify(data));
   return data[0] || null;
 }
 
@@ -92,7 +83,7 @@ function addMonths(months) {
   return d.toISOString();
 }
 
-// ── EMAIL CON RESEND ──
+// ── EMAIL CON BREVO SMTP ──
 async function sendAccessEmail(email, codigo, plan, vencimiento) {
   const frontendUrl = await getConfig('FRONTEND_URL') || 'https://recetasai.netlify.app';
   const vencLabel = vencimiento === 'vitalicio' ? 'Vitalicio ♾️' : `Hasta el ${new Date(vencimiento).toLocaleDateString('es-AR')}`;
@@ -125,21 +116,24 @@ async function sendAccessEmail(email, codigo, plan, vencimiento) {
 </html>`;
 
   try {
-    const r = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
-        to: email,
-        subject: '🥗 Tu código de acceso — RecetasIA',
-        html
-      })
+    const transporter = nodemailer.createTransporter({
+      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
     });
-    const data = await r.json();
-    console.log('Email enviado:', data);
+
+    const info = await transporter.sendMail({
+      from: `RecetasIA <${process.env.FROM_EMAIL}>`,
+      to: email,
+      subject: '🥗 Tu código de acceso — RecetasIA',
+      html
+    });
+
+    console.log('Email enviado:', info.messageId);
   } catch (err) {
     console.error('Error enviando email:', err);
   }
