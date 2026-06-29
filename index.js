@@ -130,7 +130,7 @@ async function sendAccessEmail(email, codigo, plan, vencimiento) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        sender: { name: 'RecetasIA', email: 'noreply@recetasai.netlify.app' },
+        sender: { name: 'RecetasIA', email: 'alefibertellobos@gmail.com' },
         to: [{ email }],
         subject: '🥗 Tu código de acceso — RecetasIA',
         htmlContent: html
