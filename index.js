@@ -311,8 +311,8 @@ Respondé ÚNICAMENTE con JSON válido:
   if (!jsonMatch) return { ok: false, error: 'Error generando la receta. Intentá de nuevo.' };
 
   // Registrar generación
-  await dbInsert('generaciones', { id: generateId(), codigo_usuario: session.codigo, fecha: hoy });
-  console.log('Generación registrada:', JSON.stringify(genInsert));
+  const genInsert = await dbInsert('generaciones', { id: generateId(), codigo_usuario: session.codigo, fecha: hoy });
+console.log('Generación registrada:', JSON.stringify(genInsert));
 
   return { ok: true, receta: JSON.parse(jsonMatch[0]), generaciones_hoy: generacionesHoy.length + 1, limite };
 }
