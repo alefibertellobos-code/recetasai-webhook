@@ -130,7 +130,7 @@ async function sendAccessEmail(email, codigo, plan, vencimiento) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        sender: { name: 'RecetasIA', email: 'alefibertellobos@gmail.com' },
+        sender: { name: 'RecetasIA', email: 'noreply@recetasai.netlify.app' },
         to: [{ email }],
         subject: '🥗 Tu código de acceso — RecetasIA',
         htmlContent: html
@@ -274,10 +274,12 @@ async function handleGenerateRecipe(body) {
   if (!session) return { ok: false, error: 'Sesión inválida.' };
 
   const hoy = new Date().toISOString().slice(0, 10);
-  const recetasHoy = await dbGetAll('recetas', { codigo_usuario: session.codigo }, `fecha=gte.${hoy}T00:00:00`);
   const user = await dbGet('codigos', { codigo: session.codigo });
   const limite = user?.plan === 'pro' ? 999 : 5;
-  if (recetasHoy.length >= limite) return { ok: false, error: `Límite de ${limite} recetas por día alcanzado.` };
+
+  // Contar generaciones de hoy en tabla generaciones
+  const generacionesHoy = await dbGetAll('generaciones', { codigo_usuario: session.codigo, fecha: hoy });
+  if (generacionesHoy.length >= limite) return { ok: false, error: `Límite de ${limite} recetas por día alcanzado.` };
 
   const apiKey = await getConfig('GROQ_API_KEY');
   const { filtros = {} } = body;
@@ -304,7 +306,11 @@ Respondé ÚNICAMENTE con JSON válido:
   const text = groqData.choices?.[0]?.message?.content || '';
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) return { ok: false, error: 'Error generando la receta. Intentá de nuevo.' };
-  return { ok: true, receta: JSON.parse(jsonMatch[0]) };
+
+  // Registrar generación
+  await dbInsert('generaciones', { id: generateId(), codigo_usuario: session.codigo, fecha: hoy });
+
+  return { ok: true, receta: JSON.parse(jsonMatch[0]), generaciones_hoy: generacionesHoy.length + 1, limite };
 }
 
 async function handleSaveRecipe(body) {
