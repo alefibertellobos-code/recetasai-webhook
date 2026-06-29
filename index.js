@@ -278,7 +278,10 @@ async function handleGenerateRecipe(body) {
   const limite = user?.plan === 'pro' ? 999 : 5;
 
   // Contar generaciones de hoy en tabla generaciones
-  const generacionesHoy = await dbGetAll('generaciones', { codigo_usuario: session.codigo, fecha: hoy });
+  const genUrl = `${SUPABASE_URL}/rest/v1/generaciones?codigo_usuario=eq.${session.codigo}&fecha=eq.${hoy}&select=id`;
+  const genRes = await fetch(genUrl, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+  const generacionesHoy = await genRes.json();
+  console.log('Generaciones hoy:', generacionesHoy.length, 'Límite:', limite);
   if (generacionesHoy.length >= limite) return { ok: false, error: `Límite de ${limite} recetas por día alcanzado.` };
 
   const apiKey = await getConfig('GROQ_API_KEY');
