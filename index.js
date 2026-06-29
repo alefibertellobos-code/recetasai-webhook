@@ -1,6 +1,6 @@
 const express = require('express');
 const fetch = require('node-fetch');
-const nodemailer = require('nodemailer');
+const nodemailer = require('nodemailer/lib/nodemailer');
 
 const app = express();
 app.use(express.json());
