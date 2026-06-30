@@ -214,6 +214,7 @@ app.all('/api', async (req, res) => {
       'admin_toggle_code': handleAdminToggleCode,
       'admin_get_payments': handleAdminGetPayments,
       'get_dieteticas': handleGetDieteticas,
+      'get_ciudades': handleGetCiudades,
       'admin_get_dieteticas': handleAdminGetDieteticas,
       'admin_create_dietetica': handleAdminCreateDietetica,
       'admin_update_dietetica': handleAdminUpdateDietetica,
@@ -544,6 +545,19 @@ async function handleCreatePreference(body) {
 }
 
 // ── DIETÉTICAS ──
+async function handleGetCiudades(body) {
+  const session = await getValidSession(body.token);
+  if (!session) return { ok: false, error: 'Sesión inválida.' };
+
+  const url = `${SUPABASE_URL}/rest/v1/dieteticas?select=ciudad&estado=eq.activo`;
+  const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+  const data = await r.json();
+
+  // Ciudades únicas
+  const ciudades = [...new Set(data.map(d => d.ciudad))].sort();
+  return { ok: true, ciudades };
+}
+
 async function handleGetDieteticas(body) {
   const session = await getValidSession(body.token);
   if (!session) return { ok: false, error: 'Sesión inválida.' };
@@ -552,7 +566,8 @@ async function handleGetDieteticas(body) {
   if (!ciudad) return { ok: false, error: 'Ciudad requerida.' };
 
   const hoy = new Date().toISOString().slice(0, 10);
-  const url = `${SUPABASE_URL}/rest/v1/dieteticas?ciudad=ilike.${encodeURIComponent(ciudad)}&estado=eq.activo&order=destacado.desc`;
+  const ciudadLimpia = ciudad.trim();
+  const url = `${SUPABASE_URL}/rest/v1/dieteticas?ciudad=ilike.*${encodeURIComponent(ciudadLimpia)}*&estado=eq.activo&order=destacado.desc`;
   const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
   let dieteticas = await r.json();
 
