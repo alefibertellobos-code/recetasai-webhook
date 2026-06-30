@@ -213,6 +213,12 @@ app.all('/api', async (req, res) => {
       'admin_create_code': handleAdminCreateCode,
       'admin_toggle_code': handleAdminToggleCode,
       'admin_get_payments': handleAdminGetPayments,
+      'get_dieteticas': handleGetDieteticas,
+      'admin_get_dieteticas': handleAdminGetDieteticas,
+      'admin_create_dietetica': handleAdminCreateDietetica,
+      'admin_update_dietetica': handleAdminUpdateDietetica,
+      'admin_delete_dietetica': handleAdminDeleteDietetica,
+      'set_ciudad': handleSetCiudad,
     };
 
     if (!handlers[action]) return res.json({ ok: false, error: 'Acción desconocida: ' + action });
@@ -311,8 +317,7 @@ Respondé ÚNICAMENTE con JSON válido:
   if (!jsonMatch) return { ok: false, error: 'Error generando la receta. Intentá de nuevo.' };
 
   // Registrar generación
-  const genInsert = await dbInsert('generaciones', { id: generateId(), codigo_usuario: session.codigo, fecha: hoy });
-console.log('Generación registrada:', JSON.stringify(genInsert));
+  await dbInsert('generaciones', { id: generateId(), codigo_usuario: session.codigo, fecha: hoy });
 
   return { ok: true, receta: JSON.parse(jsonMatch[0]), generaciones_hoy: generacionesHoy.length + 1, limite };
 }
@@ -536,6 +541,69 @@ async function handleCreatePreference(body) {
   const data = await r.json();
   if (data.error) return { ok: false, error: data.message };
   return { ok: true, preference_id: data.id, init_point: data.init_point };
+}
+
+// ── DIETÉTICAS ──
+async function handleGetDieteticas(body) {
+  const session = await getValidSession(body.token);
+  if (!session) return { ok: false, error: 'Sesión inválida.' };
+
+  const { ciudad } = body;
+  if (!ciudad) return { ok: false, error: 'Ciudad requerida.' };
+
+  const hoy = new Date().toISOString().slice(0, 10);
+  const url = `${SUPABASE_URL}/rest/v1/dieteticas?ciudad=ilike.${encodeURIComponent(ciudad)}&estado=eq.activo&order=destacado.desc`;
+  const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+  let dieteticas = await r.json();
+
+  // Filtrar vencidas
+  dieteticas = dieteticas.filter(d => !d.fecha_vencimiento || d.fecha_vencimiento >= hoy);
+
+  return { ok: true, dieteticas };
+}
+
+async function handleSetCiudad(body) {
+  const session = await getValidSession(body.token);
+  if (!session) return { ok: false, error: 'Sesión inválida.' };
+  await dbUpdate('codigos', { codigo: session.codigo }, { ciudad: body.ciudad });
+  return { ok: true, ciudad: body.ciudad };
+}
+
+async function handleAdminGetDieteticas(body) {
+  if (!verifyAdmin(body.admin_token)) return { ok: false, error: 'No autorizado.' };
+  const dieteticas = await dbGetAll('dieteticas', {}, 'order=fecha_alta.desc');
+  return { ok: true, dieteticas, total: dieteticas.length };
+}
+
+async function handleAdminCreateDietetica(body) {
+  if (!verifyAdmin(body.admin_token)) return { ok: false, error: 'No autorizado.' };
+  const { nombre, ciudad, direccion, telefono, whatsapp, instagram, descripcion, foto_url, fecha_vencimiento, destacado } = body;
+  if (!nombre || !ciudad) return { ok: false, error: 'Nombre y ciudad requeridos.' };
+
+  const id = generateId();
+  await dbInsert('dieteticas', {
+    id, nombre, ciudad, direccion: direccion || '', telefono: telefono || '',
+    whatsapp: whatsapp || '', instagram: instagram || '', descripcion: descripcion || '',
+    foto_url: foto_url || '', fecha_vencimiento: fecha_vencimiento || null,
+    estado: 'activo', destacado: !!destacado
+  });
+  return { ok: true, id };
+}
+
+async function handleAdminUpdateDietetica(body) {
+  if (!verifyAdmin(body.admin_token)) return { ok: false, error: 'No autorizado.' };
+  const { id, ...campos } = body;
+  if (!id) return { ok: false, error: 'ID requerido.' };
+  delete campos.admin_token;
+  delete campos.action;
+  await dbUpdate('dieteticas', { id }, campos);
+  return { ok: true };
+}
+
+async function handleAdminDeleteDietetica(body) {
+  if (!verifyAdmin(body.admin_token)) return { ok: false, error: 'No autorizado.' };
+  await dbDelete('dieteticas', { id: body.id });
+  return { ok: true };
 }
 
 // ── ADMIN ──
